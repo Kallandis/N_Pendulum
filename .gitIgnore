@@ -1,0 +1,12 @@
+# Default ignored files
+/shelf/
+workspace.xml
+/main_output
+/old_scripts
+/saved_gifs
+/venv_backup
+jit.txt
+matrixN.pdf
+references
+todo
+test.py
