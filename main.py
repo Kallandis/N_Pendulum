@@ -1,4 +1,3 @@
-# https://scipython.com/blog/the-double-pendulum/
 import sys
 import numpy as np
 from scipy.integrate import odeint
@@ -10,6 +9,9 @@ from time import perf_counter
 from numba import jit
 
 
+# jit compilation brings total calculation time for 20 bobs from 286s -> 135s
+# total time = time_calculating + time_drawing + time_animating
+# time_calculating: 161s -> ~10s
 @jit
 def theta_accel(theta, theta_dot):
     # Computes instantaneous acceleration of theta as fxn of theta, theta_dot
@@ -35,13 +37,6 @@ def theta_accel(theta, theta_dot):
 
 def deriv(y, t):
     """Return the first derivatives of y = theta1, z1, theta2, z2."""
-    # theta1, theta2, theta1_d, theta2_d = y
-    #
-    # tdd = theta_accel([theta1, theta2, theta1_d, theta2_d])
-    # theta1_dd = tdd[0]
-    # theta2_dd = tdd[1]
-    #
-    # return [theta1_d, theta2_d, theta1_dd, theta2_dd]
     theta = y[0:N]
     theta_d = y[N:]
     tdd = theta_accel(theta, theta_d)
@@ -57,10 +52,10 @@ def calc_E(y):
     # calculate T
     for i in range(N):
         temp = 0
-        for j in range(i + 1):  # pures
+        for j in range(i + 1):  # pure terms of the form: 0.5 * m * l^2 * td^2
             temp += (l[j] * theta_d[j])**2
 
-        if i > 0:   # cross-terms
+        if i > 0:   # cross-terms of the form: m1 * l1 * l2 * td1 * td2 * cos(t1 - t2)
             combos = list(combinations(range(i+1), 2))
             for combo in combos:
                 a, b = combo
@@ -72,6 +67,7 @@ def calc_E(y):
     # calculate V
     for i in range(N):
         temp = 0
+        # V looks like: -(m1 + m2 + m3) * g * l1 * cos(t1) - (m2 + m3) * g * l2 * cos(t2) - m3 * g * l3 * cos(t3)
         for k in range(i, N):
             temp += m[k]
         temp *= -1 * g * l[i] * np.cos(theta[i])
@@ -81,7 +77,7 @@ def calc_E(y):
 
 
 def xy_coords(y):
-    # calculate x, y for each bob
+    # calculate x, y for each bob from state vector "y"
     thetas = y.T[0:N]
     xs = np.zeros([N, timeSteps])
     ys = np.zeros([N, timeSteps])
@@ -168,13 +164,12 @@ if __name__ == "__main__":
     for i in range(N):
         y0[i] = np.pi/1.8   # theta = 0 oriented along -y direction
 
-    #
     # Do the numerical integration of the equations of motion
     print('\nCALCULATING PATH\n')
+    # y is an array of state vectors, iterated with each timestep dt
     y = odeint(deriv, y0, t)
     calcFinishTime = perf_counter()
 
-    #
     # check if energy is conserved
     checkE = True
     if checkE:
@@ -233,16 +228,19 @@ if __name__ == "__main__":
         trueFPS = int((timeSteps // di) / tmax)
         trueTime = (timeSteps // di) / trueFPS
         gifName = "pend.gif"
+        # have to make a palette from the color palette of the png frames
         os.system("ffmpeg -hide_banner -loglevel error -i _img%04d.png -vf palettegen palette.png")
+        # now animate the frames and save as gifName
         os.system("ffmpeg -hide_banner -loglevel error -framerate " + str(trueFPS) +
                   " -i _img%04d.png -i palette.png -lavfi paletteuse " + gifName)
 
+        # remove frames after done animating them
         files = os.listdir(os.getcwd())
         for file in files:
             if file.endswith(".png"):
                 os.remove(file)
 
-        # stats
+        # print stats
         print(f'DONE: Saved {trueTime:.2f}s, {trueFPS} FPS gif \"{gifName}\" to {os.getcwd()} \\ {imgFolder}\n')
         print(f'TIME ELAPSED:       {(perf_counter() - startTime):.1f}s')
         print(f'TIME CALCULATING:   {(calcFinishTime - startTime):.1f}s')
