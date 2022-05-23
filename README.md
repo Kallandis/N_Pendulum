@@ -19,3 +19,7 @@ Frames are drawn and temporarily saved to a folder `main_output` to be animated 
 
 ### Animating
 Animation is done with ffmpeg. After animation completes, all temporary frames are deleted from `main_output`, leaving behind the gif.
+
+
+# Example Output
+![4 Bob Example](https://github.com/evanm1455/N_Pendulum/blob/master/pend_30s_4bob.gif)
